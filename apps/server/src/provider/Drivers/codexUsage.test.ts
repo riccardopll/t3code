@@ -373,6 +373,21 @@ describe("parseCodexLine", () => {
     expect(codexUsageFormat.readMalformedRecords?.(state)).toBe(0);
   });
 
+  it("bills the first request after a resume restarts the cumulative counters at an older snapshot", () => {
+    const state = initialCodexScanState();
+    parseCodexLine(turnContext, state);
+    parseCodexLine(counted(counters(100, 20), counters(100, 20)), state);
+    parseCodexLine(counted(counters(50, 10), counters(150, 30)), state);
+    expect(
+      parseCodexLine(counted(counters(30, 5), counters(130, 25)), state)?.totals.outputTokens,
+    ).toBe(5);
+    expect(
+      parseCodexLine(counted(counters(10, 2), counters(140, 27)), state)?.totals.outputTokens,
+    ).toBe(2);
+    expect(parseCodexLine(counted(counters(30, 5), counters(20, 3)), state)).toBeNull();
+    expect(codexUsageFormat.readMalformedRecords?.(state)).toBe(1);
+  });
+
   it("retains initial tier evidence only for the own OpenAI session and exact context until native settings arrive", () => {
     const meta = (id: string, model_provider?: string) =>
       JSON.stringify({ type: "session_meta", payload: { id, model_provider } });
